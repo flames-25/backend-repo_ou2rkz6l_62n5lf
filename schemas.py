@@ -1,48 +1,34 @@
 """
-Database Schemas
+Database Schemas for the Artist Portfolio
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model corresponds to a MongoDB collection. The collection name
+is the lowercase of the class name (e.g., Subscriber -> "subscriber").
 """
+from typing import Optional, List
+from pydantic import BaseModel, Field, EmailStr
 
-from pydantic import BaseModel, Field
-from typing import Optional
+class Subscriber(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100, description="Fan name")
+    email: EmailStr = Field(..., description="Email for updates/newsletter")
+    source: Optional[str] = Field(None, description="Where the signup came from")
 
-# Example schemas (replace with your own):
+class Message(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    message: str = Field(..., min_length=1, max_length=1000)
+    social: Optional[str] = Field(None, description="Optional social handle or link")
 
-class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+class Poem(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    body: str = Field(..., min_length=1)
+    tags: List[str] = Field(default_factory=list)
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+class Track(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = Field(None, max_length=500)
+    platform_url: Optional[str] = Field(None, description="Link to listen")
 
-# Add your own schemas here:
-# --------------------------------------------------
-
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class Event(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    date_iso: str = Field(..., description="ISO datetime string of event start")
+    location: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = Field(None, max_length=500)

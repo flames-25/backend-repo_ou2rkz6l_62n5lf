@@ -1,8 +1,14 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List
+from bson import ObjectId
 
-app = FastAPI()
+from database import db, create_document, get_documents
+from schemas import Subscriber, Message, Poem, Track, Event
+
+app = FastAPI(title="Artist Portfolio API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -12,17 +18,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def read_root():
-    return {"message": "Hello from FastAPI Backend!"}
+    return {"message": "Artist Portfolio API running"}
 
-@app.get("/api/hello")
-def hello():
-    return {"message": "Hello from the backend API!"}
 
 @app.get("/test")
 def test_database():
-    """Test endpoint to check if database is available and accessible"""
     response = {
         "backend": "✅ Running",
         "database": "❌ Not Available",
@@ -31,38 +34,72 @@ def test_database():
         "connection_status": "Not Connected",
         "collections": []
     }
-    
     try:
-        # Try to import database module
-        from database import db
-        
         if db is not None:
             response["database"] = "✅ Available"
-            response["database_url"] = "✅ Configured"
+            response["database_url"] = "✅ Set" if os.getenv("DATABASE_URL") else "❌ Not Set"
             response["database_name"] = db.name if hasattr(db, 'name') else "✅ Connected"
             response["connection_status"] = "Connected"
-            
-            # Try to list collections to verify connectivity
             try:
                 collections = db.list_collection_names()
-                response["collections"] = collections[:10]  # Show first 10 collections
+                response["collections"] = collections[:10]
                 response["database"] = "✅ Connected & Working"
             except Exception as e:
                 response["database"] = f"⚠️  Connected but Error: {str(e)[:50]}"
         else:
             response["database"] = "⚠️  Available but not initialized"
-            
-    except ImportError:
-        response["database"] = "❌ Database module not found (run enable-database first)"
     except Exception as e:
         response["database"] = f"❌ Error: {str(e)[:50]}"
-    
-    # Check environment variables
-    import os
-    response["database_url"] = "✅ Set" if os.getenv("DATABASE_URL") else "❌ Not Set"
-    response["database_name"] = "✅ Set" if os.getenv("DATABASE_NAME") else "❌ Not Set"
-    
     return response
+
+
+# ------- Artist-specific endpoints -------
+
+@app.post("/api/subscribe")
+def subscribe(sub: Subscriber):
+    # prevent duplicate emails
+    existing = db["subscriber"].find_one({"email": sub.email}) if db else None
+    if existing:
+        raise HTTPException(status_code=409, detail="Already subscribed")
+    sub_id = create_document("subscriber", sub)
+    return {"status": "ok", "id": sub_id}
+
+
+@app.post("/api/message")
+def send_message(msg: Message):
+    msg_id = create_document("message", msg)
+    return {"status": "ok", "id": msg_id}
+
+
+@app.get("/api/poems", response_model=List[Poem])
+def get_poems():
+    docs = get_documents("poem", {}, limit=50)
+    # Convert _id to string and map fields
+    items = []
+    for d in docs:
+        d.pop("_id", None)
+        items.append(Poem(**d))
+    return items
+
+
+@app.get("/api/tracks", response_model=List[Track])
+def get_tracks():
+    docs = get_documents("track", {}, limit=50)
+    items = []
+    for d in docs:
+        d.pop("_id", None)
+        items.append(Track(**d))
+    return items
+
+
+@app.get("/api/events", response_model=List[Event])
+def get_events():
+    docs = get_documents("event", {}, limit=50)
+    items = []
+    for d in docs:
+        d.pop("_id", None)
+        items.append(Event(**d))
+    return items
 
 
 if __name__ == "__main__":
