@@ -32,3 +32,8 @@ class Event(BaseModel):
     date_iso: str = Field(..., description="ISO datetime string of event start")
     location: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=500)
+
+class Fanpost(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100, description="Fan display name")
+    message: str = Field(..., min_length=1, max_length=500, description="Wall comment")
+    approved: bool = Field(default=True, description="If false, hidden until moderated")
